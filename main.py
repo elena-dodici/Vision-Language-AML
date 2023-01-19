@@ -25,19 +25,23 @@ def setup_experiment(opt):
     
     return experiment, train_loader, validation_loader, test_loader
 
+
 def main(opt):
     experiment, train_loader, validation_loader, test_loader = setup_experiment(opt)
 
-    if not opt['test']: # Skip training if '--test' flag is set
+    # Skip training if '--test' flag is set
+    if not opt['test']:
+        # --test is not set
         iteration = 0
         best_accuracy = 0
         total_train_loss = 0
 
         # Restore last checkpoint
-        if os.path.exists(f'{opt["output_path"]}/last_checkpoint.pth'):
+        if os.path.exists(f'{opt["output_path"]}/last_checkpoint.pth'):  # 如果有checkpoint 则加载
             iteration, best_accuracy, total_train_loss = experiment.load_checkpoint(f'{opt["output_path"]}/last_checkpoint.pth')
         else:
             logging.info(opt)
+        logging.info('——————————————————————————————————————————————————————————————————') # logging.info() 输出到日志
 
         # Train loop
         while iteration < opt['max_iterations']:
@@ -71,8 +75,9 @@ if __name__ == '__main__':
 
     # Setup output directories
     os.makedirs(opt['output_path'], exist_ok=True)
-
-    # Setup logger
+    # print(opt["output_path"]) #./record/baseline_cartoon
+    # Setup logger 绑定日志文件到 output_path/log.txt      level: debug(调试信息)/info(正常运行的信息)/warning(未来可能出的错)/error(某些功能不能继续)/critical(程序崩了)
     logging.basicConfig(filename=f'{opt["output_path"]}/log.txt', format='%(message)s', level=logging.INFO, filemode='a')
 
     main(opt)
+    print("---finish---")
