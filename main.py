@@ -9,8 +9,8 @@ from experiments.clip_disentangle import CLIPDisentangleExperiment
 def setup_experiment(opt):
     
     if opt['experiment'] == 'baseline':
-        experiment = BaselineExperiment(opt)
-        train_loader, validation_loader, test_loader = build_splits_baseline(opt)
+        experiment = BaselineExperiment(opt) # 实例化一个BaselineExperiment类 对象
+        train_loader, validation_loader, test_loader = build_splits_baseline(opt) # DataLoader() 构建若干batch数据
         
     elif opt['experiment'] == 'domain_disentangle':
         experiment = DomainDisentangleExperiment(opt)
@@ -31,7 +31,7 @@ def main(opt):
 
     # Skip training if '--test' flag is set
     if not opt['test']:
-        # --test is not set
+    # --test is not set
         iteration = 0
         best_accuracy = 0
         total_train_loss = 0
@@ -43,15 +43,15 @@ def main(opt):
             logging.info(opt)
         logging.info('——————————————————————————————————————————————————————————————————') # logging.info() 输出到日志
 
-        # Train loop
+        # Train loop 运行N次也只能训练一次，而不是在上次最好的基础上继续训练
         while iteration < opt['max_iterations']:
             for data in train_loader:
+                print("----")
+                total_train_loss += experiment.train_iteration(data) # 前向反向传播，Adam优化模型
 
-                total_train_loss += experiment.train_iteration(data)
-
-                if iteration % opt['print_every'] == 0:
+                if iteration % opt['print_every'] == 0: # 每50次 输出一条当前的平均损失
                     logging.info(f'[TRAIN - {iteration}] Loss: {total_train_loss / (iteration + 1)}')
-                
+
                 if iteration % opt['validate_every'] == 0:
                     # Run validation
                     val_accuracy, val_loss = experiment.validate(validation_loader)
@@ -68,7 +68,6 @@ def main(opt):
     experiment.load_checkpoint(f'{opt["output_path"]}/best_checkpoint.pth')
     test_accuracy, _ = experiment.validate(test_loader)
     logging.info(f'[TEST] Accuracy: {(100 * test_accuracy):.2f}')
-
 if __name__ == '__main__':
 
     opt = parse_arguments()

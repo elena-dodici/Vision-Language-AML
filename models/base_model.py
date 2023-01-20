@@ -26,6 +26,7 @@ class FeatureExtractor(nn.Module):
 class BaselineModel(nn.Module):
     def __init__(self):
         super(BaselineModel, self).__init__()
+        # model中包含了 特征提取器和分类器
         self.feature_extractor = FeatureExtractor()
         self.category_encoder = nn.Sequential(
             nn.Linear(512, 512),
@@ -40,7 +41,7 @@ class BaselineModel(nn.Module):
             nn.BatchNorm1d(512),
             nn.ReLU()
         )
-        self.classifier = nn.Linear(512, 7)
+        self.classifier = nn.Linear(512, 7) # 全连接
     
     def forward(self, x):
         x = self.feature_extractor(x)

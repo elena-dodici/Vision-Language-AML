@@ -23,21 +23,22 @@ class PACSDatasetBaseline(Dataset):
     def __getitem__(self, index):
         img_path, y = self.examples[index]
         x = self.transform(Image.open(img_path).convert('RGB'))
-        return x, y
+        return x, y  # tuple(图片的tensor，类别label)
 
 def read_lines(data_path, domain_name):
     examples = {}
-    with open(f'{data_path}/{domain_name}.txt') as f:
+    with open(f'{data_path}/{domain_name}.txt') as f: # e.g. 打开./data/PACS/art_painting.txt文件
         lines = f.readlines()
 
     for line in lines: 
         line = line.strip().split()[0].split('/')
-        category_name = line[3]
-        category_idx = CATEGORIES[category_name]
+        category_name = line[3] # dog、elephant....
+        category_idx = CATEGORIES[category_name] # 枚举： 某个类型字符串的名字 -> 数字编号
         image_name = line[4]
+        # data/PACS/art_painting/dog/pic_001.jpg
         image_path = f'{data_path}/kfold/{domain_name}/{category_name}/{image_name}'
         if category_idx not in examples.keys():
-            examples[category_idx] = [image_path]
+            examples[category_idx] = [image_path] # example[i] 第i个类 所有图片数据的路径 [xxx/pic_0.jpg、xxx/pic_1.jpg ...]
         else:
             examples[category_idx].append(image_path)
     return examples
@@ -45,24 +46,24 @@ def read_lines(data_path, domain_name):
 def build_splits_baseline(opt):
     source_domain = 'art_painting'
     target_domain = opt['target_domain']
-
-    source_examples = read_lines(opt['data_path'], source_domain)
+    # xxx_examples[i] 第i个类图片路径们
+    source_examples = read_lines(opt['data_path'], source_domain) # opt['data_path']: "data/PACS"
     target_examples = read_lines(opt['data_path'], target_domain)
 
     # Compute ratios of examples for each category
-    source_category_ratios = {category_idx: len(examples_list) for category_idx, examples_list in source_examples.items()}
-    source_total_examples = sum(source_category_ratios.values())
-    source_category_ratios = {category_idx: c / source_total_examples for category_idx, c in source_category_ratios.items()}
+    source_category_ratios = {category_idx: len(examples_list) for category_idx, examples_list in source_examples.items()} # 每个类别有多少张图， dict.items()返回字典的键值对
+    source_total_examples = sum(source_category_ratios.values()) # source domain一共多少张图
+    source_category_ratios = {category_idx: c / source_total_examples for category_idx, c in source_category_ratios.items()} # source domain 中各个类别图片数据占总图数的比例 e.g. dog占18.5% elephant:12.45% ...
 
     # Build splits - we train only on the source domain (Art Painting)
-    val_split_length = source_total_examples * 0.2 # 20% of the training split used for validation
+    val_split_length = source_total_examples * 0.2 # 20% of the training split used for validation 验证集一共多少条数据
 
     train_examples = []
     val_examples = []
     test_examples = []
 
-    for category_idx, examples_list in source_examples.items():
-        split_idx = round(source_category_ratios[category_idx] * val_split_length)
+    for category_idx, examples_list in source_examples.items(): # key(类别id): val(图片路径)
+        split_idx = round(source_category_ratios[category_idx] * val_split_length) # (N_k * N_vali) / N_total 第k类中分割出去为验证集的index
         for i, example in enumerate(examples_list):
             if i > split_idx:
                 train_examples.append([example, category_idx]) # each pair is [path_to_img, class_label]
