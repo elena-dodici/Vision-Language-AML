@@ -45,16 +45,16 @@ def main(opt):
 
         # Train loop 运行N次也只能训练一次，而不是在上次最好的基础上继续训练
         while iteration < opt['max_iterations']:
-            for data in train_loader:
-                print("----")
-                total_train_loss += experiment.train_iteration(data) # 前向反向传播，Adam优化模型
+            for data in train_loader: # Domain Distanglement的 train_loader必须包含domain的
+                total_train_loss += experiment.train_iteration(data) # 前向反向传播，Adam优化模型  data 只从source domain中取出的
 
                 if iteration % opt['print_every'] == 0: # 每50次 输出一条当前的平均损失
                     logging.info(f'[TRAIN - {iteration}] Loss: {total_train_loss / (iteration + 1)}')
 
                 if iteration % opt['validate_every'] == 0:
                     # Run validation
-                    val_accuracy, val_loss = experiment.validate(validation_loader)
+                    val_accuracy, val_loss = experiment.validate(validation_loader) # validate()中才有计算accuracy ，train只更新weight不计算accuracy
+                    # print(len(validation_loader))
                     logging.info(f'[VAL - {iteration}] Loss: {val_loss} | Accuracy: {(100 * val_accuracy):.2f}')
                     if val_accuracy > best_accuracy:
                         experiment.save_checkpoint(f'{opt["output_path"]}/best_checkpoint.pth', iteration, best_accuracy, total_train_loss)

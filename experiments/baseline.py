@@ -47,8 +47,7 @@ class BaselineExperiment: # See point 1. of the project
         # data: tuple(图片的tensor,类别label)
         x, y = data
         x = x.to(self.device)
-        y = y.to(self.device)
-
+        y = y.to(self.device) # y dtype:int64
         logits = self.model(x) # 调用forward()向前传播 训练模型   训练完一次（base_model.py）
         loss = self.criterion(logits, y) # 经过交叉熵的到loss
 
