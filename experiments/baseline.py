@@ -19,9 +19,10 @@ class BaselineExperiment: # See point 1. of the project
         self.optimizer = torch.optim.Adam(self.model.parameters(), lr=opt['lr'])
         self.criterion = torch.nn.CrossEntropyLoss()
 
-    def save_checkpoint(self, path, iteration, best_accuracy, total_train_loss):
+    def save_checkpoint(self, path, epoch, iteration, best_accuracy, total_train_loss):
         checkpoint = {}
 
+        checkpoint['epoch'] = epoch
         checkpoint['iteration'] = iteration
         checkpoint['best_accuracy'] = best_accuracy
         checkpoint['total_train_loss'] = total_train_loss
@@ -33,7 +34,7 @@ class BaselineExperiment: # See point 1. of the project
 
     def load_checkpoint(self, path):
         checkpoint = torch.load(path)
-
+        epoch = checkpoint['epoch']
         iteration = checkpoint['iteration']
         best_accuracy = checkpoint['best_accuracy']
         total_train_loss = checkpoint['total_train_loss']
@@ -41,7 +42,7 @@ class BaselineExperiment: # See point 1. of the project
         self.model.load_state_dict(checkpoint['model'])
         self.optimizer.load_state_dict(checkpoint['optimizer'])
 
-        return iteration, best_accuracy, total_train_loss
+        return epoch, iteration, best_accuracy, total_train_loss
 
     def train_iteration(self, data):
         # data: tuple(图片的tensor,类别label)

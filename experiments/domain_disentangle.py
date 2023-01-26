@@ -27,9 +27,10 @@ class DomainDisentangleExperiment: # See point 2. of the project
         # self.optimizer2 = torch.optim.Adam(self.criterion.parameters(), lr=opt['lr'])
         print("model parameters: ",self.model.parameters())
         print("criterion parameters: ",self.criterion.parameters())
-    def save_checkpoint(self, path, iteration, best_accuracy, total_train_loss):
+    def save_checkpoint(self, path, epoch, iteration, best_accuracy, total_train_loss):
         checkpoint = {}
 
+        checkpoint['epoch'] = epoch
         checkpoint['iteration'] = iteration  # 当前第几个iteration
         checkpoint['best_accuracy'] = best_accuracy
         checkpoint['total_train_loss'] = total_train_loss
@@ -42,6 +43,7 @@ class DomainDisentangleExperiment: # See point 2. of the project
     def load_checkpoint(self, path):
         checkpoint = torch.load(path)
 
+        epoch = checkpoint['epoch']
         iteration = checkpoint['iteration']
         best_accuracy = checkpoint['best_accuracy']
         total_train_loss = checkpoint['total_train_loss']
@@ -49,7 +51,7 @@ class DomainDisentangleExperiment: # See point 2. of the project
         self.model.load_state_dict(checkpoint['model'])
         self.optimizer.load_state_dict(checkpoint['optimizer'])
 
-        return iteration, best_accuracy, total_train_loss
+        return epoch, iteration, best_accuracy, total_train_loss
     def train_iteration(self, data):
         # [xd]: source/target的图
         # [y]: source的category label(狗，猫...)，如果当前x是target的图则y为-1
