@@ -44,7 +44,8 @@ def main(opt):
         logging.info('——————————————————————————————————————————————————————————————————') # logging.info() 输出到日志
 
         # Train loop 运行N次也只能训练一次，而不是在上次最好的基础上继续训练
-        while iteration < opt['max_iterations']:
+        while iteration < opt['max_iterations']: # 如果target domain特也放入训练接则一轮是125次(len(train_loader)=125) 一共5000/125=40 epoch     train_loader越小迭代的epoch数量越多
+            # 扫一轮训练数据
             for data in train_loader: # Domain Distanglement的 train_loader必须包含domain的
                 total_train_loss += experiment.train_iteration(data) # 前向反向传播，Adam优化模型  data 只从source domain中取出的
 
@@ -57,6 +58,7 @@ def main(opt):
                     # print(len(validation_loader))
                     logging.info(f'[VAL - {iteration}] Loss: {val_loss} | Accuracy: {(100 * val_accuracy):.2f}')
                     if val_accuracy > best_accuracy:
+                        best_accuracy = val_accuracy
                         experiment.save_checkpoint(f'{opt["output_path"]}/best_checkpoint.pth', iteration, best_accuracy, total_train_loss)
                     experiment.save_checkpoint(f'{opt["output_path"]}/last_checkpoint.pth', iteration, best_accuracy, total_train_loss)
 

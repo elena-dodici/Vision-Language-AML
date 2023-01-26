@@ -82,7 +82,7 @@ def build_splits_baseline(opt):
     train_examples = []
     val_examples = []
     test_examples = []
-
+#examples_list 这个类别的图的路径
     for category_idx, examples_list in source_examples.items(): # key(类别id): val(图片路径)
         split_idx = round(source_category_ratios[category_idx] * val_split_length) # (N_k * N_vali) / N_total 第k类中分割出去为验证集的index
         for i, example in enumerate(examples_list):
@@ -130,11 +130,9 @@ def build_splits_domain_disentangle(opt):  # x, y, yd
     target_examples = read_lines(opt['data_path'], target_domain)
 
     # Compute ratios of examples for each category
-    source_category_ratios = {category_idx: len(examples_list) for category_idx, examples_list in
-                              source_examples.items()}  # 每个类别有多少张图， dict.items()返回字典的键值对
+    source_category_ratios = {category_idx: len(examples_list) for category_idx, examples_list in source_examples.items()}  # 每个类别有多少张图， dict.items()返回字典的键值对
     source_total_examples = sum(source_category_ratios.values())  # source domain一共多少张图
-    source_category_ratios = {category_idx: c / source_total_examples for category_idx, c in
-                              source_category_ratios.items()}  # source domain 中各个类别图片数据占总图数的比例 e.g. dog占18.5% elephant:12.45% ...
+    source_category_ratios = {category_idx: c / source_total_examples for category_idx, c in source_category_ratios.items()}  # source domain 中各个类别图片数据占总图数的比例 e.g. dog占18.5% elephant:12.45% ...
 
     # Build splits - we train only on the source domain (Art Painting)
     val_split_length = source_total_examples * 0.2  # 20% of the training split used for validation 验证集一共多少条数据
@@ -144,8 +142,7 @@ def build_splits_domain_disentangle(opt):  # x, y, yd
     test_examples = []
 
     for category_idx, examples_list in source_examples.items():  # key(类别id): val(图片路径)
-        split_idx = round(
-            source_category_ratios[category_idx] * val_split_length)  # (N_k * N_vali) / N_total 第k类中分割出去为验证集的index
+        split_idx = round(source_category_ratios[category_idx] * val_split_length)  # (N_k * N_vali) / N_total 第k类中分割出去为验证集的index
         for i, example in enumerate(examples_list):
             if i > split_idx:
                 train_examples.append([example, category_idx, DOMAINS[source_domain]])  # each pair is [path_to_img, class_label]
@@ -153,13 +150,13 @@ def build_splits_domain_disentangle(opt):  # x, y, yd
                 val_examples.append([example, category_idx, DOMAINS[source_domain]])  # each pair is [path_to_img, class_label]
 
     for category_idx, examples_list in target_examples.items():
-        split_idx = round(source_category_ratios[category_idx] * val_split_length) # (N_k * N_vali) / N_total 第k类中分割出去为验证集的index
+        # split_idx = round(source_category_ratios[category_idx] * val_split_length) # (N_k * N_vali) / N_total 第k类中分割出去为验证集的index
 
-        for i, example in enumerate(examples_list):
-            if i>split_idx:
-                train_examples.append([example, -1, DOMAINS[target_domain]])
-            else:
-                val_examples.append([example, -1, DOMAINS[target_domain]])
+        for example in examples_list:
+            # if i>split_idx:
+            train_examples.append([example, -1, DOMAINS[target_domain]])
+            # else:
+            #     val_examples.append([example, -1, DOMAINS[target_domain]])
             test_examples.append([example, category_idx, DOMAINS[target_domain]])  # each pair is [path_to_img, class_label]
 ### ______
 

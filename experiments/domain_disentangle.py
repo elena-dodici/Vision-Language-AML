@@ -19,14 +19,14 @@ class DomainDisentangleExperiment: # See point 2. of the project
             param.requires_grad = True
 
         # Loss functions
-        self.criterion = DomainDisentangleLoss()
+        # self.criterion = DomainDisentangleLoss()
+        self.criterion = torch.nn.CrossEntropyLoss()
         # Setup optimization procedure
-        self.optimizer = torch.optim.Adam(list(self.model.parameters())+list(self.criterion.parameters()), lr=opt['lr'])
-        # self.optimizer1 = torch.optim.Adam(self.model.parameters(), lr=opt['lr'])
+        # self.optimizer = torch.optim.Adam(list(self.model.parameters())+list(self.criterion.parameters()), lr=opt['lr'])
+        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=opt['lr'])
         # self.optimizer2 = torch.optim.Adam(self.criterion.parameters(), lr=opt['lr'])
         print("model parameters: ",self.model.parameters())
         print("criterion parameters: ",self.criterion.parameters())
-
     def save_checkpoint(self, path, iteration, best_accuracy, total_train_loss):
         checkpoint = {}
 
@@ -63,15 +63,17 @@ class DomainDisentangleExperiment: # See point 2. of the project
         yd = yd.to(self.device)
 
         fG, fG_hat, Cfcs, DCfcs, DCfds, Cfds = self.model(xd)
-        Cfcs = Cfcs[y != -1, :].detach()
-        DCfcs = DCfcs[y != -1, :].detach()  # 删除掉没有label的数据的处理结果，使其不参加loss计算
+
+        Cfcs = Cfcs[y != -1, :]
+        DCfcs = DCfcs[y != -1, :]  # 删除掉没有label的数据的处理结果，使其不参加loss计算
         # print(y)
-        y = y[y != -1].detach()
+        y = y[y != -1]
         y = y.type(torch.int64)
         if y.shape[0] == 0:
             return 0
-        loss = self.criterion(fG, fG_hat, Cfcs, DCfcs, DCfds, Cfds, y, yd)  # 这里要重新写！！！ 不能 直接模型处理完结果传到损失函数里，损失函数可能用的总体模型中不同阶段的输出，而不是最终整体的输出！！！！
-
+        # loss = self.criterion(fG, fG_hat, Cfcs, DCfcs, DCfds, Cfds, y, yd)  # 这里要重新写！！！ 不能 直接模型处理完结果传到损失函数里，损失函数可能用的总体模型中不同阶段的输出，而不是最终整体的输出！！！！
+        # print(Cfcs.requires_grad)
+        loss = self.criterion(Cfcs,y)
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
@@ -83,26 +85,24 @@ class DomainDisentangleExperiment: # See point 2. of the project
         count = 0
         loss = 0
         with torch.no_grad():  # 禁用梯度计算，即使torch.tensor(xxx,requires_grad = True) 使用.requires_grad()也会返回False
-            for xd, y, yd in loader:  # type(x) tensor
+            for x, y, yd in loader:  # type(x) tensor
 
                 y = y.to(self.device)
-                xd = xd.to(self.device)
+                x = x.to(self.device)
                 yd = yd.to(self.device)
 
-                fG, fG_hat, Cfcs, DCfcs, DCfds, Cfds = self.model(xd)
-                Cfcs = Cfcs[y != -1, :].detach()
-                DCfcs = DCfcs[y != -1, :].detach()  # 删除掉没有label的数据的处理结果，使其不参加loss计算
-                # print(Cfcs)
-                y = y[y != -1].detach()
-                y = y.type(torch.int64)
-                if y.shape[0] != 0:
-                # print(y.shape[0])
-                    loss += self.criterion(fG, fG_hat, Cfcs, DCfcs, DCfds, Cfds, y,yd)  # 这里要重新写！！！ 不能 直接模型处理完结果传到损失函数里，损失函数可能用的总体模型中不同阶段的输出，而不是最终整体的输出！！！！
-
-                    pred = torch.argmax(Cfcs, dim=-1)
+                fG, fG_hat, Cfcs, DCfcs, DCfds, Cfds = self.model(x)
+                # Cfcs = Cfcs[y != -1, :].detach()
+                # DCfcs = DCfcs[y != -1, :].detach()  # 删除掉没有label的数据的处理结果，使其不参加loss计算
+                # y = y[y != -1].detach()
+                # y = y.type(torch.int64)
+                # if y.shape[0] != 0:
+                # loss += self.criterion(fG, fG_hat, Cfcs, DCfcs, DCfds, Cfds, y,yd)  # 这里要重新写！！！ 不能 直接模型处理完结果传到损失函数里，损失函数可能用的总体模型中不同阶段的输出，而不是最终整体的输出！！！！
+                loss += self.criterion(Cfcs,y)
+                pred = torch.argmax(Cfcs, dim=-1)
                 # print(Cfcs.shape)
-                    accuracy += (pred == y).sum().item()
-                    count += xd.size(0)
+                accuracy += (pred == y).sum().item()
+                count += x.size(0)
                 # print(count)
 
         mean_accuracy = accuracy / count

@@ -97,9 +97,9 @@ class DomainDisentangleModel(nn.Module):
         )
         self.category_classifier = nn.Sequential(
             nn.Linear(512,7),
-            nn.BatchNorm1d(7),
+            # nn.BatchNorm1d(7),
             # nn.LogSoftmax(dim=1)
-            nn.Softmax(dim=1)
+            # nn.Softmax(dim=1)
         )
 
         self.reconstructor = nn.Linear(1024,512)
