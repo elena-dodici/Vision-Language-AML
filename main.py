@@ -102,7 +102,7 @@ def main(opt):
                     iteration += 1
                     i += 1
             epoch += 1
-            if epoch > opt['num_epochs']:
+            if epoch >= opt['num_epochs']:
                 break
 
     # Test

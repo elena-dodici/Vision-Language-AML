@@ -98,6 +98,7 @@ class DomainDisentangleModel(nn.Module):
         )
         self.category_classifier = nn.Sequential(
             nn.Linear(512,7),
+            # nn.ReLU()
             # nn.BatchNorm1d(7),
             # nn.LogSoftmax(dim=1)
             # nn.Softmax(dim=1)
@@ -123,5 +124,8 @@ class DomainDisentangleModel(nn.Module):
         DCfds = self.domain_classifier(fds)
         Cfds = self.category_classifier(fds)
 
+        eps = torch.tensor(1e-5, dtype=torch.float)
+        Cfds = torch.clamp(Cfds,min=eps,max=1)
+        DCfcs = torch.clamp(DCfcs,min=eps,max=1)
         return x, fG_hat, Cfcs, DCfcs, DCfds, Cfds
 
