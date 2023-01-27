@@ -20,13 +20,24 @@ class DomainDisentangleExperiment: # See point 2. of the project
 
         # Loss functions
         # self.criterion = DomainDisentangleLoss()
-        self.criterion = torch.nn.CrossEntropyLoss()
+        self.nll_loss = torch.nn.NLLLoss()
+        self.cross_entropy = torch.nn.CrossEntropyLoss()
+        self.rec_loss = torch.nn.MSELoss()
+        self.alpha1 = torch.nn.Parameter(torch.tensor(1.0,device='cuda'), requires_grad=True)
+        self.alpha2 = torch.nn.Parameter(torch.tensor(1.0,device='cuda'), requires_grad=True)
+        self.w1 = 1
+        self.w2 = 1
+        self.w3 = 1
         # Setup optimization procedure
-        # self.optimizer = torch.optim.Adam(list(self.model.parameters())+list(self.criterion.parameters()), lr=opt['lr'])
-        self.optimizer = torch.optim.Adam(self.model.parameters(), lr=opt['lr'])
+        self.optimizer = torch.optim.Adam(list(self.model.parameters())+[self.alpha1,self.alpha2], lr=opt['lr'])
+        # self.optimizer = torch.optim.Adam(self.model.parameters(), lr=opt['lr'])
         # self.optimizer2 = torch.optim.Adam(self.criterion.parameters(), lr=opt['lr'])
-        print("model parameters: ",self.model.parameters())
-        print("criterion parameters: ",self.criterion.parameters())
+        # print("model parameters: ",self.model.parameters())
+        # print("criterion parameters: ",self.criterion.parameters())
+    def entropy_loss(self, f):  # 应该返回一个标量 最后是求和的
+        logf = torch.log(f)
+        mlogf = logf.mean(dim=0)
+        return -mlogf.sum()
     def save_checkpoint(self, path, epoch, iteration, best_accuracy, total_train_loss):
         checkpoint = {}
 
@@ -52,30 +63,46 @@ class DomainDisentangleExperiment: # See point 2. of the project
         self.optimizer.load_state_dict(checkpoint['optimizer'])
 
         return epoch, iteration, best_accuracy, total_train_loss
-    def train_iteration(self, data):
-        # [xd]: source/target的图
-        # [y]: source的category label(狗，猫...)，如果当前x是target的图则y为-1
-        # [yd]: source+target的domain label (cartoon, photo...)
-        xd, y, yd = data # xd包含了 source domain和target domain的图，如果是target domain，则对应的y是-1
-        # x = xd[y!=-1,:,:,:].detach()
+    def train_iteration(self, data_source, data_target):
+        # [x]: source/target的图
+        # [y]:  category label(狗，猫...)
+        # [yd]: domain label (cartoon, photo...)
+        x_s, y_s, yd_s = data_source
+        # print(y_s.size())
+        x_t, _, yd_t = data_target
 
-        # x = x.to(self.device)
-        y = y.to(self.device)
-        xd = xd.to(self.device)
-        yd = yd.to(self.device)
+        x_s = x_s.to(self.device)
+        y_s = y_s.to(self.device)
+        yd_s = yd_s.to(self.device)
 
-        fG, fG_hat, Cfcs, DCfcs, DCfds, Cfds = self.model(xd)
+        x_t = x_t.to(self.device) # [32,3,224,224] 32是一个batch中图片数量
+        yd_t = yd_t.to(self.device)
 
-        Cfcs = Cfcs[y != -1, :]
-        DCfcs = DCfcs[y != -1, :]  # 删除掉没有label的数据的处理结果，使其不参加loss计算
-        # print(y)
-        y = y[y != -1]
-        y = y.type(torch.int64)
-        if y.shape[0] == 0:
-            return 0
-        # loss = self.criterion(fG, fG_hat, Cfcs, DCfcs, DCfds, Cfds, y, yd)  # 这里要重新写！！！ 不能 直接模型处理完结果传到损失函数里，损失函数可能用的总体模型中不同阶段的输出，而不是最终整体的输出！！！！
-        # print(Cfcs.requires_grad)
-        loss = self.criterion(Cfcs,y)
+        # x = torch.cat((x_s,x_t),0) # [64,3,224,224]
+        # yd = torch.cat((yd_s,yd_t),0) # [64] 前32个是source domain label， 后32个是target
+
+        fG, fG_hat, Cfcs, DCfcs, DCfds, Cfds = self.model(x_s)
+        # loss = self.criterion(fG, fG_hat, Cfcs, DCfcs, DCfds, Cfds, y_s, yd)  # 这里要重新写！！！ 不能 直接模型处理完结果传到损失函数里，损失函数可能用的总体模型中不同阶段的输出，而不是最终整体的输出！！！！
+        l_class = self.cross_entropy(Cfcs,y_s)
+        l_class_ent_1 = self.entropy_loss(DCfcs)
+        l_domain_1 = self.cross_entropy(DCfds, yd_s)
+        l_domain_ent_1 = self.entropy_loss(Cfds)
+        l_rec_1 = self.rec_loss(fG,fG_hat)
+
+
+        fG, fG_hat, Cfcs, DCfcs, DCfds, Cfds = self.model(x_t)
+
+        l_class_ent_2 = self.entropy_loss(DCfcs)
+        L_class = l_class #+ self.alpha1* (l_class_ent_1 + l_class_ent_2)
+        l_domain_2 = self.cross_entropy(DCfds,yd_t)
+        l_domain = l_domain_1 + l_domain_2  # + self.alpha2*self.entropy_loss(Cfds)
+        l_domain_ent_2 = self.entropy_loss(Cfds)
+        L_domain = l_domain #+ self.alpha2*(l_domain_ent_1 + l_domain_ent_2)
+        l_rec_2 = self.rec_loss(fG,fG_hat)
+        L_rec = l_rec_1 + l_rec_2
+
+        loss =self.w1 * L_class + self.w2 * L_domain# + self.w3 * L_rec
+        # print(loss,L_domain)
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
@@ -94,13 +121,15 @@ class DomainDisentangleExperiment: # See point 2. of the project
                 yd = yd.to(self.device)
 
                 fG, fG_hat, Cfcs, DCfcs, DCfds, Cfds = self.model(x)
-                # Cfcs = Cfcs[y != -1, :].detach()
-                # DCfcs = DCfcs[y != -1, :].detach()  # 删除掉没有label的数据的处理结果，使其不参加loss计算
-                # y = y[y != -1].detach()
-                # y = y.type(torch.int64)
-                # if y.shape[0] != 0:
+                # opt = parse_arguments()
+                # Cfcs = Cfcs[0:opt['batch_size'], :]
                 # loss += self.criterion(fG, fG_hat, Cfcs, DCfcs, DCfds, Cfds, y,yd)  # 这里要重新写！！！ 不能 直接模型处理完结果传到损失函数里，损失函数可能用的总体模型中不同阶段的输出，而不是最终整体的输出！！！！
-                loss += self.criterion(Cfcs,y)
+
+                loss += self.cross_entropy(Cfcs, y)
+                # L_domain = self.nll_loss(torch.log(DCfds), yd)  # + self.alpha2*self.entropy_loss(Cfds)
+                # L_rec = self.rec_loss(fG, fG_hat)
+                # loss += self.w1 * L_class + self.w2 * L_domain + self.w3 * L_rec
+
                 pred = torch.argmax(Cfcs, dim=-1)
                 # print(Cfcs.shape)
                 accuracy += (pred == y).sum().item()

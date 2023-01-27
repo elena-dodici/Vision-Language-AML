@@ -93,7 +93,8 @@ class DomainDisentangleModel(nn.Module):
 
             nn.Linear(64,4),
             # nn.LeakyReLU() # 会出现负数，后面求log会有nan
-            nn.ReLU()
+            # nn.ReLU()
+            # nn.Softmax(dim=1)
         )
         self.category_classifier = nn.Sequential(
             nn.Linear(512,7),
@@ -102,14 +103,16 @@ class DomainDisentangleModel(nn.Module):
             # nn.Softmax(dim=1)
         )
 
-        self.reconstructor = nn.Linear(1024,512)
+        self.reconstructor = nn.Sequential(
+            nn.Linear(1024,512),
+            nn.ReLU()
+        )
 
-    def forward(self, xd): # xd包含source+target domain的图
+    def forward(self, x): # xd包含source+target domain的图
 
-        # x = self.feature_extractor(x)
-        xd = self.feature_extractor(xd) # 没有 category label的也正常参加处理，只是计算loss，更新梯度时排除掉
-        fcs = self.category_encoder(xd)
-        fds = self.domain_encoder(xd)
+        x = self.feature_extractor(x) # 没有 category label的也正常参加处理，只是计算loss，更新梯度时排除掉
+        fcs = self.category_encoder(x)
+        fds = self.domain_encoder(x)
         # need to return
         fG_hat = torch.cat((fds,fcs),dim=1)
         fG_hat = self.reconstructor(fG_hat)
@@ -120,5 +123,5 @@ class DomainDisentangleModel(nn.Module):
         DCfds = self.domain_classifier(fds)
         Cfds = self.category_classifier(fds)
 
-        return xd, fG_hat, Cfcs, DCfcs, DCfds, Cfds
+        return x, fG_hat, Cfcs, DCfcs, DCfds, Cfds
 

@@ -154,7 +154,7 @@ def build_splits_domain_disentangle(opt):  # x, y, yd
 
         for example in examples_list:
             # if i>split_idx:
-            train_examples.append([example, -1, DOMAINS[target_domain]])
+            # train_examples.append([example, -1, DOMAINS[target_domain]])
             # else:
             #     val_examples.append([example, -1, DOMAINS[target_domain]])
             test_examples.append([example, category_idx, DOMAINS[target_domain]])  # each pair is [path_to_img, class_label]
