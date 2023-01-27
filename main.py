@@ -79,8 +79,8 @@ def main(opt):
                 data_target_iter = iter(test_loader)
                 i = 0
                 while i<len_dataloader:
-                    data_source = data_source_iter.next()
-                    data_target = data_target_iter.next()
+                    data_source = next(data_source_iter)# next(...)
+                    data_target = next(data_target_iter)# next(...)
                     total_train_loss += experiment.train_iteration(data_source, data_target)  # 前向反向传播，Adam优化模型  data 只从source domain中取出的
 
                     if iteration % opt['print_every'] == 0:  # 每50次 输出一条当前的平均损失

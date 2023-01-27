@@ -25,7 +25,7 @@ class DomainDisentangleExperiment: # See point 2. of the project
         self.rec_loss = torch.nn.MSELoss()
         self.alpha1 = torch.nn.Parameter(torch.tensor(0.1,device='cuda'), requires_grad=True)
         self.alpha2 = torch.nn.Parameter(torch.tensor(0.1,device='cuda'), requires_grad=True)
-        self.w1 = 1
+        self.w1 = 1 #主要训练category分类器 所以他的权重高一点，其他权重低一点
         self.w2 = 1
         self.w3 = 1
         # Setup optimization procedure
@@ -88,11 +88,9 @@ class DomainDisentangleExperiment: # See point 2. of the project
         fG, fG_hat, Cfcs, DCfcs, DCfds, Cfds = self.model(x_s)
         # loss = self.criterion(fG, fG_hat, Cfcs, DCfcs, DCfds, Cfds, y_s, yd)  # 这里要重新写！！！ 不能 直接模型处理完结果传到损失函数里，损失函数可能用的总体模型中不同阶段的输出，而不是最终整体的输出！！！！
         l_class = self.cross_entropy(Cfcs,y_s)
-        # DCfcs = torch.clamp_min_(DCfcs,0.0001)
         l_class_ent_1 = self.entropy_loss(DCfcs)
 
         l_domain_1 = self.cross_entropy(DCfds, yd_s)
-        # Cfds = torch.clamp_min_(Cfds,0.0001)
         l_domain_ent_1 = self.entropy_loss(Cfds)
 
         l_rec_1 = self.rec_loss(fG,fG_hat)
@@ -100,14 +98,12 @@ class DomainDisentangleExperiment: # See point 2. of the project
 
         fG, fG_hat, _, _, DCfds, Cfds = self.model(x_t)
 
-        # DCfcs = torch.clamp_min_(DCfcs,0.0001)
-        # l_class_ent_2 = self.entropy_loss(DCfcs) 注释掉这个
-        L_class = l_class + self.alpha1* (l_class_ent_1 )
+        l_class_ent_2 = self.entropy_loss(DCfcs) #注释掉这个
+        L_class = l_class + self.alpha1* (l_class_ent_1 + l_class_ent_2)
 
         l_domain_2 = self.cross_entropy(DCfds,yd_t)
         l_domain = l_domain_1 + l_domain_2
 
-        # Cfds = torch.clamp_min_(Cfds,0.0001)
         l_domain_ent_2 = self.entropy_loss(Cfds)
         L_domain = l_domain + self.alpha2*(l_domain_ent_1 + l_domain_ent_2)
 
@@ -116,8 +112,8 @@ class DomainDisentangleExperiment: # See point 2. of the project
 
         loss =self.w1 * L_class + self.w2 * L_domain + self.w3 * L_rec
         # if loss < 0 :
-        print(L_class,'-',l_class_ent_1)
-        print(L_domain,'-',l_domain_ent_1,'-',l_domain_ent_2)
+        # print(L_class,'-',l_class_ent_1)
+        # print(L_domain,'-',l_domain_ent_1,'-',l_domain_ent_2)
             # print(L_rec)
         # print(loss,L_domain)
         self.optimizer.zero_grad()
@@ -127,7 +123,6 @@ class DomainDisentangleExperiment: # See point 2. of the project
 
     def validate(self, loader):
         self.model.eval()  # 设置为evaluation 模式
-        print(self.alpha1,self.alpha2)
         accuracy = 0
         count = 0
         loss = 0
