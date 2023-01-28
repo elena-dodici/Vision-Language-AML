@@ -89,7 +89,7 @@ class DomainDisentangleExperiment: # See point 2. of the project
         fG, fG_hat, Cfcs, DCfcs, DCfds, Cfds = self.model(x_s)
         # loss = self.criterion(fG, fG_hat, Cfcs, DCfcs, DCfds, Cfds, y_s, yd)  # 这里要重新写！！！ 不能 直接模型处理完结果传到损失函数里，损失函数可能用的总体模型中不同阶段的输出，而不是最终整体的输出！！！！
         l_class = self.cross_entropy(Cfcs,y_s)
-        l_class_ent_1 = self.entropy_loss(DCfcs)
+        l_class_ent_1 = self.entropy_loss(DCfcs) # 没变化
 
         l_domain_1 = self.cross_entropy(DCfds, yd_s)
         l_domain_ent_1 = self.entropy_loss(Cfds)
@@ -105,7 +105,7 @@ class DomainDisentangleExperiment: # See point 2. of the project
         l_domain_2 = self.cross_entropy(DCfds,yd_t)
         l_domain = l_domain_1 + l_domain_2
 
-        l_domain_ent_2 = self.entropy_loss(Cfds)
+        l_domain_ent_2 = self.entropy_loss(Cfds) # 会变成0
         L_domain = l_domain + self.alpha2*(l_domain_ent_1 + l_domain_ent_2)
 
         l_rec_2 = self.rec_loss(fG,fG_hat)
@@ -114,7 +114,15 @@ class DomainDisentangleExperiment: # See point 2. of the project
         loss =self.w1 * L_class + self.w2 * L_domain + self.w3 * L_rec
         self.optimizer.zero_grad()
         loss.backward()
+        # torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1)
         self.optimizer.step()
+        # print(self.model.category_classifier[0].weight.grad)
+        if loss.item() < 0:
+            print("L_domain ",l_domain.item(),l_domain_ent_1.item(),l_domain_ent_2.item(),self.alpha2.item())
+            print("L_class ",l_class.item(), l_class_ent_1.item(), self.alpha1.item())
+            print("总loss ",L_class.item(),L_domain.item(),L_rec.item())
+        # for name,param in self.model.named_parameters():
+        #     print(name)
         return loss.item()
 
     def validate(self, loader):

@@ -94,6 +94,7 @@ class DomainDisentangleModel(nn.Module):
             nn.Linear(64,4),
             # nn.LeakyReLU() # 会出现负数，后面求log会有nan
             # nn.ReLU()
+            # nn.Linear(512,4),
             # nn.Softmax(dim=1) # 需要分别冻住对应层，分别训练模型，也可能有梯度爆炸问题，用梯度裁剪解决
         )
         self.category_classifier = nn.Sequential(
@@ -124,9 +125,9 @@ class DomainDisentangleModel(nn.Module):
         DCfds = self.domain_classifier(fds)
         Cfds = self.category_classifier(fds)
 
-        print(Cfds)
+        # print(Cfds)
         eps = torch.tensor(1e-5, dtype=torch.float)
-        # Cfds = torch.clamp(Cfds,min=eps,max=1)
+        # Cfds = torch.clamp(Cfds,min=eps,max=1) # 用softmax去掉这俩会有nan
         # DCfcs = torch.clamp(DCfcs,min=eps,max=1)
         return x, fG_hat, Cfcs, DCfcs, DCfds, Cfds
 
