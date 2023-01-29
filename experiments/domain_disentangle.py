@@ -23,13 +23,13 @@ class DomainDisentangleExperiment: # See point 2. of the project
         self.nll_loss = torch.nn.NLLLoss()
         self.cross_entropy = torch.nn.CrossEntropyLoss()
         self.rec_loss = torch.nn.MSELoss()
-        self.alpha1 = torch.nn.Parameter(torch.tensor(0.1,device='cuda'), requires_grad=True)
-        self.alpha2 = torch.nn.Parameter(torch.tensor(0.1,device='cuda'), requires_grad=True)
+        self.alpha1 = 1 #torch.nn.Parameter(torch.tensor(0.1,device='cuda'), requires_grad=True)
+        self.alpha2 = 1 #torch.nn.Parameter(torch.tensor(0.1,device='cuda'), requires_grad=True)
         self.w1 = 1 #主要训练category分类器 所以他的权重高一点，其他权重低一点
         self.w2 = 1
         self.w3 = 1
         # Setup optimization procedure
-        self.optimizer = torch.optim.Adam(list(self.model.parameters())+[self.alpha1,self.alpha2], lr=opt['lr'])
+        self.optimizer = torch.optim.Adam(list(self.model.parameters()), lr=opt['lr'])
         # self.optimizer = torch.optim.Adam(self.model.parameters(), lr=opt['lr'])
         # self.optimizer2 = torch.optim.Adam(self.criterion.parameters(), lr=opt['lr'])
         # print("model parameters: ",self.model.parameters())
@@ -85,35 +85,58 @@ class DomainDisentangleExperiment: # See point 2. of the project
         # x = torch.cat((x_s,x_t),0) # [64,3,224,224]
         # yd = torch.cat((yd_s,yd_t),0) # [64] 前32个是source domain label， 后32个是target
 
+        self.optimizer.zero_grad()
         # train source domain 部分
         fG, fG_hat, Cfcs, DCfcs, DCfds, Cfds = self.model(x_s)
+        
         # loss = self.criterion(fG, fG_hat, Cfcs, DCfcs, DCfds, Cfds, y_s, yd)  # 这里要重新写！！！ 不能 直接模型处理完结果传到损失函数里，损失函数可能用的总体模型中不同阶段的输出，而不是最终整体的输出！！！！
-        l_class = self.cross_entropy(Cfcs,y_s)
-        l_class_ent_1 = self.entropy_loss(DCfcs) # 没变化
+        l_class = self.cross_entropy(Cfcs,y_s)  * self.w1              # (1)   # train c_cls
 
-        l_domain_1 = self.cross_entropy(DCfds, yd_s)
-        l_domain_ent_1 = self.entropy_loss(Cfds)
+        l_class_ent_1 = self.entropy_loss(DCfcs) # 没变化               (2)
 
-        l_rec_1 = self.rec_loss(fG,fG_hat)
+        l_domain_1 = self.cross_entropy(DCfds, yd_s)    * self.w2       # (3)       # train d_cls
+
+        # freeze params except d_cls
+        # l_domain_1.backward()
+
+        l_domain_ent_1 = self.entropy_loss(Cfds)                        # (4)
+
+        l_rec_1 = self.rec_loss(fG,fG_hat)     * self.w3               # (5) train fds, fcs, R
 
         # train target domain 部分
         fG, fG_hat, _, _, DCfds, Cfds = self.model(x_t)
 
         # l_class_ent_2 = self.entropy_loss(DCfcs) #注释掉这个
-        L_class = l_class + self.alpha1* (l_class_ent_1 )
+        L_class = l_class + self.alpha1* (l_class_ent_1 ) * self.w1          # train fcs
 
         l_domain_2 = self.cross_entropy(DCfds,yd_t)
-        l_domain = l_domain_1 + l_domain_2
+        l_domain = l_domain_1 + l_domain_2  * self.w2  
 
         l_domain_ent_2 = self.entropy_loss(Cfds) # 会变成0
-        L_domain = l_domain + self.alpha2*(l_domain_ent_1 + l_domain_ent_2)
+        L_domain = l_domain + self.alpha2*(l_domain_ent_1 + l_domain_ent_2) # train fds
 
         l_rec_2 = self.rec_loss(fG,fG_hat)
         L_rec = l_rec_1 + l_rec_2
 
-        loss =self.w1 * L_class + self.w2 * L_domain + self.w3 * L_rec
-        self.optimizer.zero_grad()
-        loss.backward()
+        # loss =self.w1 * L_class + self.w2 * L_domain + self.w3 * L_rec
+
+        # loss_c_cls = l_class * self.w1
+        # loss_c_cls.backward()
+        # optimizer to a new c_cls module 
+        # optimzer.zero_grad()
+
+
+        # loss_d_cls = L_domain * self.w2
+        # loss_d_cls.backward()
+        # save d_cls gradients
+
+        # loss_fcs = L_class * () + l_rec_1 * ()
+        # loss_fds = 
+        # loss_rec_1 = 
+        
+        # loss.backward()
+
+        self.optimizer.set_gradient(...)
         # torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1)
         self.optimizer.step()
         # print(self.model.category_classifier[0].weight.grad)
