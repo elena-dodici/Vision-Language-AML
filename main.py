@@ -116,7 +116,7 @@ if __name__ == '__main__':
     # Setup output directories
     os.makedirs(opt['output_path'], exist_ok=True)
     # print(opt["output_path"]) #./record/baseline_cartoon
-    # Setup logger 绑定日志文件到 output_path/log.txt      level: debug(调试信息)/info(正常运行的信息)/warning(未来可能出的错)/error(某些功能不能继续)/critical(程序崩了)
+    # Setup logger output_path/log.txt      level: debug(调试信息)/info(正常运行的信息)/warning(未来可能出的错)/error(某些功能不能继续)/critical(程序崩了)
     logging.basicConfig(filename=f'{opt["output_path"]}/log.txt', format='%(message)s', level=logging.INFO, filemode='a')
 
     main(opt)
